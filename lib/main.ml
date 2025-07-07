@@ -30,8 +30,21 @@ let non_win =
     ]
 
 let print_game (game : Game.t) =
-  ignore game;
-  print_endline ""
+  let length = match game.game_kind with Omok -> 225 | _ -> 9 in
+  let sqrt_length = int_of_float (sqrt (float_of_int length)) in
+  let game_list =
+    List.init length ~f:(fun num ->
+        let r = num / sqrt_length in
+        let c = num % sqrt_length in
+        let pos : Position.t = { row = r; column = c } in
+        let some_player = Map.find game.board pos in
+        match some_player with
+        | Some some_player -> Piece.to_string some_player
+        | None -> " ")
+  in
+  (* ignore game; *)
+
+  List.iteri game_list
 
 let%expect_test "print_win_for_x" =
   print_game win_for_x;
