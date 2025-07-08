@@ -44,7 +44,17 @@ let print_game (game : Game.t) =
   in
   (* ignore game; *)
 
-  List.iteri game_list
+  if length = 225 then
+    List.iteri game_list ~f:(fun ind x ->
+        if not ((ind + 1) % sqrt_length = 0) then print_string (x ^ " |")
+        else if ind + 1 = 225 then print_string x
+        else
+          print_string (x ^ "\n---------------------------------------------\n"))
+  else
+    List.iteri game_list ~f:(fun ind x ->
+        if not ((ind + 1) % sqrt_length = 0) then print_string (x ^ " | ")
+        else if ind + 1 = 9 then print_string x
+        else print_string (x ^ "\n---------\n"))
 
 let%expect_test "print_win_for_x" =
   print_game win_for_x;
@@ -72,13 +82,173 @@ let%expect_test "print_non_win" =
 
 (* Exercise 1 *)
 let available_moves (game : Game.t) : Position.t list =
-  ignore game;
-  failwith "Implement me!"
+  (* ignore game; *)
+  let length = match game.game_kind with Omok -> 225 | _ -> 9 in
+
+  let sqrt_length = match game.game_kind with Omok -> 15 | _ -> 3 in
+
+  let vals =
+    List.init length ~f:(fun x ->
+        let r = x / sqrt_length in
+        let c = x % sqrt_length in
+        let input : Position.t = { row = r; column = c } in
+        input)
+  in
+
+  List.filter vals ~f:(fun x ->
+      match Map.find game.board x with Some _ -> false | None -> true)
+(* failwith "Implement me!" *)
+
+let%expect_test "available_moves" =
+  let x = available_moves win_for_x in
+  let _ =
+    match List.length x with
+    | 0 -> ()
+    | _ -> print_string (string_of_int (List.length x))
+  in
+  return ()
 
 (* Exercise 2 *)
 let evaluate (game : Game.t) : Evaluation.t =
-  ignore game;
-  failwith "Implement me!"
+  let length = match game.game_kind with Omok -> 225 | _ -> 9 in
+  let sqrt_length = match game.game_kind with Omok -> 15 | _ -> 3 in
+
+  let to_win = match game.game_kind with Omok -> 5 | _ -> 3 in
+
+  let squares =
+    List.init length ~f:(fun x ->
+        let r = x / sqrt_length in
+        let c = x % sqrt_length in
+        let input : Position.t = { row = r; column = c } in
+        input)
+  in
+
+  let output : Evaluation.t ref = ref Evaluation.Game_continues in
+
+  List.iteri squares ~f:(fun _ square ->
+      match Map.find game.board square with
+      | Some _ ->
+          let horiz =
+            List.init to_win ~f:(fun x ->
+                let to_add : Position.t =
+                  { row = square.row + x; column = square.column }
+                in
+                to_add)
+          in
+
+          let h2 =
+            List.filter horiz ~f:(fun x ->
+                (match Map.find game.board x with
+                | Some _ -> true
+                | None -> false)
+                && String.equal
+                     (Piece.to_string (Map.find_exn game.board x))
+                     (Piece.to_string
+                        (Map.find_exn game.board (List.hd_exn horiz))))
+          in
+
+          let vert =
+            List.init to_win ~f:(fun x ->
+                let to_add : Position.t =
+                  { row = square.row; column = square.column + x }
+                in
+                to_add)
+          in
+
+          let v2 =
+            List.filter vert ~f:(fun x ->
+                (match Map.find game.board x with
+                | Some _ -> true
+                | None -> false)
+                && String.equal
+                     (Piece.to_string (Map.find_exn game.board x))
+                     (Piece.to_string
+                        (Map.find_exn game.board (List.hd_exn vert))))
+          in
+
+          let diag1 =
+            List.init to_win ~f:(fun x ->
+                let to_add : Position.t =
+                  { row = square.row - x; column = square.column + x }
+                in
+                to_add)
+          in
+
+          let d1 =
+            List.filter diag1 ~f:(fun x ->
+                (match Map.find game.board x with
+                | Some _ -> true
+                | None -> false)
+                && String.equal
+                     (Piece.to_string (Map.find_exn game.board x))
+                     (Piece.to_string
+                        (Map.find_exn game.board (List.hd_exn diag1))))
+          in
+
+          let diag2 =
+            List.init to_win ~f:(fun x ->
+                let to_add : Position.t =
+                  { row = square.row + x; column = square.column + x }
+                in
+                to_add)
+          in
+
+          let d2 =
+            List.filter diag2 ~f:(fun x ->
+                (match Map.find game.board x with
+                | Some _ -> true
+                | None -> false)
+                && String.equal
+                     (Piece.to_string (Map.find_exn game.board x))
+                     (Piece.to_string
+                        (Map.find_exn game.board (List.hd_exn diag2))))
+          in
+
+          if
+            List.length d1 = 5
+            || List.length d2 = 5
+            || List.length h2 = 5
+            || List.length v2 = 5
+          then (
+            output.(0) <- 2;
+            if
+              String.equal
+                (Piece.to_string (Map.find_exn game.board square))
+                "X"
+            then output.(1) <- 2
+            else output.(1) <- 0)
+          else ()
+      | None -> ());
+
+  match output.(0) with
+  | 0 -> Illegal_move
+  | 1 -> Game_continues
+  | _ -> (
+      match output.(1) with
+      | 0 -> Game_over { winner = Some O }
+      | 2 -> Game_over { winner = Some X }
+      | _ -> Game_over { winner = None })
+
+(* ignore game; *)
+(* failwith "Implement me!" *)
+
+let%expect_test "evaluate1" =
+  let x = evaluate win_for_x in
+  let _ =
+    match x with
+    | Game_over { winner = Some X } -> print_string "Oh yeah!"
+    | _ -> print_s (Evaluation.sexp_of_t x)
+  in
+  return ()
+
+(* let%expect_test "evaluate2" =
+  let x = available_moves win_for_x in
+  let _ =
+    match List.length x with
+    | 0 -> ()
+    | _ -> print_string (x)
+  in
+  return () *)
 
 (* Exercise 3 *)
 let winning_moves ~(me : Piece.t) (game : Game.t) : Position.t list =
