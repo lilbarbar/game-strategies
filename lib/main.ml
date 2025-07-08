@@ -30,31 +30,64 @@ let non_win =
     ]
 
 let print_game (game : Game.t) =
-  let length = match game.game_kind with Omok -> 225 | _ -> 9 in
-  let sqrt_length = int_of_float (sqrt (float_of_int length)) in
-  let game_list =
+  (* let num_squares = match game.game_kind with Omok -> 225 | _ -> 9 in *)
+  let board_length = Game_kind.board_length game.game_kind in
+
+  (* let game_list =
     List.init length ~f:(fun num ->
-        let r = num / sqrt_length in
-        let c = num % sqrt_length in
+        let r = num / board_length in
+        let c = num % board_length in
         let pos : Position.t = { row = r; column = c } in
         let some_player = Map.find game.board pos in
         match some_player with
         | Some some_player -> Piece.to_string some_player
         | None -> " ")
-  in
-  (* ignore game; *)
+  in *)
+  (* let position_coordinates =
+    List.cartesian_product
+      (List.init board_length ~f:(fun x -> x))
+      (List.init board_length ~f:(fun x -> x))
+  in *)
+  (* let piece_strings =
+    List.map position_coordinates ~f:(fun (r, c) ->
+        let pos : Position.t = { row = r; column = c } in
+        let some_player = Map.find game.board pos in
+        match some_player with
+        | Some some_player -> Piece.to_string some_player
+        | None -> " ")
+  in *)
 
+  (* ignore game; *)
+  (* 
   if length = 225 then
-    List.iteri game_list ~f:(fun ind x ->
-        if not ((ind + 1) % sqrt_length = 0) then print_string (x ^ " |")
+    List.iteri piece_strings ~f:(fun ind x ->
+        if not ((ind + 1) % board_length = 0) then print_string (x ^ " |")
         else if ind + 1 = 225 then print_string x
         else
           print_string (x ^ "\n---------------------------------------------\n"))
-  else
-    List.iteri game_list ~f:(fun ind x ->
-        if not ((ind + 1) % sqrt_length = 0) then print_string (x ^ " | ")
-        else if ind + 1 = 9 then print_string x
-        else print_string (x ^ "\n---------\n"))
+  else *)
+
+  (* List.iteri piece_strings ~f:(fun ind x ->
+        if not ((ind + 1) % board_length = 0) then print_string (x ^ " | ")
+        else if ind + 1 = num_squares then print_string x
+        else
+           print_string (x ^ "\n---------\n")) *)
+  let rows = List.init board_length ~f:(fun x -> x) in
+  let cols = List.init board_length ~f:(fun x -> x) in
+  List.iter rows ~f:(fun x ->
+      List.iter cols ~f:(fun y ->
+          let piece =
+            match Map.find game.board { Position.row = x; column = y } with
+            | Some some_player -> Piece.to_string some_player
+            | None -> " "
+          in
+
+          if not (y + 1 = board_length) then print_string (piece ^ " | ")
+          else print_string piece);
+
+      if not (x + 1 = board_length) then
+        print_string
+          ("\n" ^ String.init (board_length * 3) ~f:(fun _ -> '-') ^ "\n"))
 
 let%expect_test "print_win_for_x" =
   print_game win_for_x;
@@ -209,25 +242,24 @@ let evaluate (game : Game.t) : Evaluation.t =
             || List.length d2 = 5
             || List.length h2 = 5
             || List.length v2 = 5
-          then (
-            output.(0) <- 2;
+          then
             if
               String.equal
                 (Piece.to_string (Map.find_exn game.board square))
                 "X"
-            then output.(1) <- 2
-            else output.(1) <- 0)
+            then output := Game_over { winner = Some X }
+            else output := Game_over { winner = Some O }
           else ()
       | None -> ());
 
-  match output.(0) with
-  | 0 -> Illegal_move
-  | 1 -> Game_continues
-  | _ -> (
-      match output.(1) with
-      | 0 -> Game_over { winner = Some O }
-      | 2 -> Game_over { winner = Some X }
-      | _ -> Game_over { winner = None })
+  (match !output with
+  | Game_continues ->
+      if List.length (available_moves game) = 0 then
+        output := Game_over { winner = None }
+      else ()
+  | _ -> ());
+
+  !output
 
 (* ignore game; *)
 (* failwith "Implement me!" *)
